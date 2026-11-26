@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://codvexa.piyushravi.in/sitemap.xml
