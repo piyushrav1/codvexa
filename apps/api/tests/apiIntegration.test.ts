@@ -60,7 +60,7 @@ test('API Integration: GET /api/health returns detailed runtime diagnostics', as
 
   const data = await res.json() as any
   assert.equal(data.status, 'ok')
-  assert.equal(data.service, 'TestMeMan API')
+  assert.equal(data.service, 'Codvexa API')
   assert.ok(typeof data.uptimeSeconds === 'number')
   assert.ok(data.system?.nodeVersion)
   assert.ok(typeof data.system?.memory?.rssMb === 'number')

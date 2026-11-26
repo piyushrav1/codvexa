@@ -98,13 +98,13 @@ const practiceCategories = [
 function App() {
   const [practiceView, setPracticeView] = useState<'landing' | 'workspace'>('landing')
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('testmeman.preferredCategories') || '["arrays"]') } catch { return ['arrays'] }
+    try { return JSON.parse(localStorage.getItem('codvexa.preferredCategories') || '["arrays"]') } catch { return ['arrays'] }
   })
   const [selectedTopic, setSelectedTopic] = useState<string>(
-    localStorage.getItem('testmeman.preferredTopic') || 'arrays',
+    localStorage.getItem('codvexa.preferredTopic') || 'arrays',
   )
   const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>(
-    (localStorage.getItem('testmeman.preferredDifficulty') as 'easy' | 'medium' | 'hard') || 'medium',
+    (localStorage.getItem('codvexa.preferredDifficulty') as 'easy' | 'medium' | 'hard') || 'medium',
   )
   const [customPromptText, setCustomPromptText] = useState<string>('')
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -144,19 +144,22 @@ function App() {
   const revisionRef = useRef(1)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [resetModalOpen, setResetModalOpen] = useState(false)
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    const saved = localStorage.getItem('codvexa.theme')
+    return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'dark'
+  })
   const [fontSize, setFontSize] = useState(13)
   const [wordWrap, setWordWrap] = useState(false)
   useEffect(() => {
-    localStorage.removeItem('testmeman.hasVisited')
+    localStorage.removeItem('codvexa.hasVisited')
   }, [])
 
   const [problemWidth, setProblemWidth] = useState(() => {
-    const saved = Number(localStorage.getItem('testmeman.layout.problemWidth'))
+    const saved = Number(localStorage.getItem('codvexa.layout.problemWidth'))
     return saved >= 320 && saved <= 700 ? saved : Math.min(540, Math.floor(window.innerWidth * 0.45))
   })
   const [outputHeight, setOutputHeight] = useState(() => {
-    const saved = Number(localStorage.getItem('testmeman.layout.outputHeight'))
+    const saved = Number(localStorage.getItem('codvexa.layout.outputHeight'))
     return saved >= 140 && saved <= 450 ? saved : 200
   })
   const visibleTests = question ? question.testCases.filter((test) => !test.hidden) : []
@@ -187,7 +190,7 @@ function App() {
         setQuestion(attempt.question)
         revisionRef.current = attempt.revision + 1
 
-        const cached = localStorage.getItem(`testmeman:draft:${attempt.id}`)
+        const cached = localStorage.getItem(`codvexa:draft:${attempt.id}`)
         let restoredCode = attempt.code
         let restoredLanguage = attempt.language
         if (cached) {
@@ -232,10 +235,10 @@ function App() {
     if (practiceTimer.status !== 'running' || !practiceTimer.expiresAt) {
       setPracticeTimer((current) => current ? { ...current, remainingSeconds: current.remainingSeconds } : current)
       document.title = practiceTimer.status === 'paused'
-        ? '(Timer paused) TestMeMan'
+        ? '(Timer paused) Codvexa'
         : practiceTimer.status === 'expired'
-          ? '(Time expired) TestMeMan'
-          : 'TestMeMan'
+          ? '(Time expired) Codvexa'
+          : 'Codvexa'
       return
     }
     const update = () => {
@@ -243,7 +246,7 @@ function App() {
       setPracticeTimer((current) => remainingSeconds === 0
         ? current ? { ...current, status: 'expired', remainingSeconds: 0, expiredAt: current.expiredAt ?? new Date().toISOString() } : current
         : current ? { ...current, remainingSeconds } : current)
-      document.title = remainingSeconds > 0 ? `(${formatTimer(remainingSeconds)}) TestMeMan` : '(Time expired) TestMeMan'
+      document.title = remainingSeconds > 0 ? `(${formatTimer(remainingSeconds)}) Codvexa` : '(Time expired) Codvexa'
     }
     update()
     const interval = window.setInterval(update, 1000)
@@ -255,7 +258,7 @@ function App() {
     setDraftStatus('saving')
     const timer = window.setTimeout(() => {
       const revision = revisionRef.current++
-      localStorage.setItem(`testmeman:draft:${activeAttempt.id}`, JSON.stringify({
+      localStorage.setItem(`codvexa:draft:${activeAttempt.id}`, JSON.stringify({
         code,
         language,
         revision,
@@ -274,9 +277,9 @@ function App() {
   }, [activeAttempt, code, language])
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('testmeman.theme') as 'light' | 'dark' | 'system' | null
-    const savedFontSize = Number(localStorage.getItem('testmeman.fontSize'))
-    const savedWrap = localStorage.getItem('testmeman.wordWrap')
+    const savedTheme = localStorage.getItem('codvexa.theme') as 'light' | 'dark' | 'system' | null
+    const savedFontSize = Number(localStorage.getItem('codvexa.fontSize'))
+    const savedWrap = localStorage.getItem('codvexa.wordWrap')
     if (savedTheme) setTheme(savedTheme)
     if (savedFontSize >= 11 && savedFontSize <= 18) setFontSize(savedFontSize)
     if (savedWrap) setWordWrap(savedWrap === 'true')
@@ -288,15 +291,15 @@ function App() {
       document.documentElement.dataset.theme = dark ? 'dark' : 'light'
     }
     applyTheme()
-    localStorage.setItem('testmeman.theme', theme)
+    localStorage.setItem('codvexa.theme', theme)
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     media.addEventListener('change', applyTheme)
     return () => media.removeEventListener('change', applyTheme)
   }, [theme])
 
   useEffect(() => {
-    localStorage.setItem('testmeman.fontSize', String(fontSize))
-    localStorage.setItem('testmeman.wordWrap', String(wordWrap))
+    localStorage.setItem('codvexa.fontSize', String(fontSize))
+    localStorage.setItem('codvexa.wordWrap', String(wordWrap))
   }, [fontSize, wordWrap])
 
   useEffect(() => {
@@ -318,11 +321,11 @@ function App() {
   }, [resetModalOpen])
 
   useEffect(() => {
-    localStorage.setItem('testmeman.layout.problemWidth', String(problemWidth))
+    localStorage.setItem('codvexa.layout.problemWidth', String(problemWidth))
   }, [problemWidth])
 
   useEffect(() => {
-    localStorage.setItem('testmeman.layout.outputHeight', String(outputHeight))
+    localStorage.setItem('codvexa.layout.outputHeight', String(outputHeight))
   }, [outputHeight])
 
   const startVerticalResize = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -377,9 +380,9 @@ function App() {
     setGenerating(true)
     setGenerationError('')
     const topic = selectedCategories[0] ?? 'arrays'
-    localStorage.setItem('testmeman.preferredTopic', topic)
-    localStorage.setItem('testmeman.preferredDifficulty', selectedDifficulty)
-    localStorage.setItem('testmeman.preferredCategories', JSON.stringify(selectedCategories))
+    localStorage.setItem('codvexa.preferredTopic', topic)
+    localStorage.setItem('codvexa.preferredDifficulty', selectedDifficulty)
+    localStorage.setItem('codvexa.preferredCategories', JSON.stringify(selectedCategories))
     apiClient.createNewAttempt({
       topic,
       difficulty: selectedDifficulty,
@@ -430,7 +433,7 @@ function App() {
     if (!activeAttempt || quitting) return
     setQuitting(true)
     const revision = revisionRef.current++
-    localStorage.setItem(`testmeman:draft:${activeAttempt.id}`, JSON.stringify({
+    localStorage.setItem(`codvexa:draft:${activeAttempt.id}`, JSON.stringify({
       code,
       language,
       revision,
@@ -438,11 +441,11 @@ function App() {
     }))
     apiClient.quitAttempt(activeAttempt.id, { language, code, revision })
       .then(() => {
-        localStorage.removeItem(`testmeman:draft:${activeAttempt.id}`)
+        localStorage.removeItem(`codvexa:draft:${activeAttempt.id}`)
         setQuitDialogOpen(false)
         setPracticeTimer(null)
         setActiveAttempt(null)
-        document.title = 'TestMeMan'
+        document.title = 'Codvexa'
         setPracticeView('landing')
       })
       .catch((error) => {
@@ -645,9 +648,9 @@ function App() {
         {generationSplash}
         <main className="landing-page">
         <header className="landing-header">
-          <button className="landing-brand" onClick={() => setPracticeView('landing')} aria-label="TestMeMan home">
+          <button className="landing-brand" onClick={() => setPracticeView('landing')} aria-label="Codvexa home">
             <span className="brand-mark"><Code2 size={20} strokeWidth={2.5} /></span>
-            <span>TestMeMan</span>
+            <span>Codvexa</span>
           </button>
           <div className="landing-header-actions">
             <button
@@ -664,7 +667,7 @@ function App() {
           <section className="landing-hero">
             <div className="landing-kicker"><Sparkles size={14} /> AI-powered coding practice</div>
             <h1>Build stronger algorithms,<br /><span>one challenge at a time.</span></h1>
-            <p>Choose your topic and difficulty. TestMeMan will generate a focused coding challenge with visible and hidden test cases.</p>
+            <p>Choose your topic and difficulty. Codvexa will generate a focused coding challenge with visible and hidden test cases.</p>
 
             {resumeAttempt && (
               <button className="continue-card" onClick={resumePractice}>
@@ -772,7 +775,7 @@ function App() {
   if (!question) {
     return generationSplash ?? (
       <main className="landing-page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', gap: '1.5rem' }}>
-        <Sparkles size={40} className="spin" style={{ color: '#6366f1' }} />
+        <Sparkles size={40} className="spin" style={{ color: '#6834ec' }} />
         <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Loading Challenge...</h2>
       </main>
     )
@@ -790,7 +793,7 @@ function App() {
           onClick={() => setPracticeView('landing')}
         >
           <div className="brand-mark"><Code2 size={20} strokeWidth={2.5} /></div>
-          <span>TestMeMan</span>
+          <span>Codvexa</span>
         </button>
         <nav className="main-nav">
           <a href="#">Practice</a>
@@ -1085,7 +1088,32 @@ function App() {
               }[language]}
               value={code}
               onChange={(value) => setCode(value ?? '')}
-              theme={theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'vs-dark' : 'light'}
+              beforeMount={(monaco) => {
+                monaco.editor.defineTheme('codvexa-dark', {
+                  base: 'vs-dark',
+                  inherit: true,
+                  rules: [
+                    { token: 'keyword', foreground: 'A78BFA', fontStyle: 'bold' },
+                    { token: 'keyword.control', foreground: 'A78BFA' },
+                    { token: 'type', foreground: 'A78BFA' },
+                    { token: 'entity.name.function', foreground: '38BDF8' },
+                    { token: 'support.function', foreground: '38BDF8' },
+                    { token: 'string', foreground: '22C55E' },
+                    { token: 'number', foreground: 'FB923C' },
+                    { token: 'comment', foreground: '77778F', fontStyle: 'italic' },
+                  ],
+                  colors: {
+                    'editor.background': '#0E0E17',
+                    'editor.foreground': '#F5F3FF',
+                    'editorLineNumber.foreground': '#77778F',
+                    'editorLineNumber.activeForeground': '#F5F3FF',
+                    'editor.lineHighlightBackground': '#161622',
+                    'editor.selectionBackground': '#6834EC44',
+                    'editorCursor.foreground': '#A78BFA',
+                  },
+                })
+              }}
+              theme={theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'codvexa-dark' : 'light'}
               options={{
                 fontSize,
                 lineNumbers: 'on',

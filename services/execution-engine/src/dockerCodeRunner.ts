@@ -27,7 +27,7 @@ export function appendOutputChunk(
 
 export class DockerCodeRunner implements CodeRunner {
   async execute(request: ExecutionRequest): Promise<ExecutionResult> {
-    const workDir = join(tmpdir(), `testmeman-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    const workDir = join(tmpdir(), `codvexa-${Date.now()}-${Math.random().toString(36).slice(2)}`)
     await mkdir(workDir, { recursive: true })
 
     try {

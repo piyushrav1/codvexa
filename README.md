@@ -1,6 +1,6 @@
-# TestMeMan
+# Codvexa
 
-TestMeMan is an AI-powered competitive programming and technical interview practice platform. It combines real-time problem generation powered by Google Gemini, an independent AI verification auditor, an isolated multi-language code execution engine, and a Monaco-based coding workspace.
+Codvexa is an AI-powered competitive programming and technical interview practice platform. It combines real-time problem generation powered by Google Gemini, an independent AI verification auditor, an isolated multi-language code execution engine, and a Monaco-based coding workspace.
 
 ---
 

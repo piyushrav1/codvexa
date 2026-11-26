@@ -505,7 +505,7 @@ if (typeof require !== "undefined" && require.main === module) {
       })
 
       const returnVector = Boolean(returnType?.includes('vector'))
-      const sourceWithoutMain = code.replace(/\bint\s+main\s*\(/g, 'int testmeman_original_main(')
+      const sourceWithoutMain = code.replace(/\bint\s+main\s*\(/g, 'int codvexa_original_main(')
 
       return `#include <bits/stdc++.h>
 using namespace std;

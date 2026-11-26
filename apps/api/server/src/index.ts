@@ -5,5 +5,5 @@ import { logger } from './config/logger.js'
 const app = createApp()
 
 app.listen(env.PORT, () => {
-  logger.info({ port: env.PORT }, 'TestMeMan API started')
+  logger.info({ port: env.PORT }, 'Codvexa API started')
 })

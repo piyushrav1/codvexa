@@ -12,7 +12,7 @@ export class QuestionRepository {
   private readonly databaseName: string
   private db?: Db
 
-  constructor(mongoUri?: string, databaseName = 'testmeman') {
+  constructor(mongoUri?: string, databaseName = 'codvexa') {
     this.databaseName = databaseName
     this.client = mongoUri ? new MongoClient(mongoUri) : undefined
     for (const q of curatedQuestions) {

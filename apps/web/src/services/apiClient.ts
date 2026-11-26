@@ -21,10 +21,10 @@ export class ApiError extends Error {
 
 function getSessionId(): string {
   try {
-    let id = localStorage.getItem('testmeman.sessionId')
+    let id = localStorage.getItem('codvexa.sessionId')
     if (!id) {
       id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 's-' + Math.random().toString(36).slice(2)
-      localStorage.setItem('testmeman.sessionId', id)
+      localStorage.setItem('codvexa.sessionId', id)
     }
     return id
   } catch {

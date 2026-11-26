@@ -6,7 +6,7 @@ import { QuestionRepository } from '../../../../../services/question-engine/src/
 import { QuestionService } from '../../../../../services/question-engine/src/questionService.js'
 import { validateBody } from '../middleware/validateRequest.js'
 
-const COOKIE_NAME = 'testmeman_session'
+const COOKIE_NAME = 'codvexa_session'
 const draftSchema = z.object({
   attemptId: z.string().trim().min(1).max(100),
   language: z.enum(PROGRAMMING_LANGUAGES),

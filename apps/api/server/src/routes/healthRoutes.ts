@@ -6,7 +6,7 @@ healthRouter.get('/', (_request, response) => {
   const mem = process.memoryUsage()
   response.json({
     status: 'ok',
-    service: 'TestMeMan API',
+    service: 'Codvexa API',
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
     environment: process.env.NODE_ENV || 'development',
