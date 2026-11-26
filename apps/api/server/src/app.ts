@@ -55,9 +55,10 @@ export function createApp(dependencies: AppDependencies = {}) {
     : undefined
   const interviewerService = dependencies.interviewerService ?? new InterviewerService(repository, interviewerProvider)
 
-  const configuredOrigins = env.CLIENT_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+  const configuredOrigins = env.CLIENT_ORIGIN.split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean)
   const allowedOrigins = new Set([
     ...configuredOrigins,
+    'https://ai-question-generator-personal-zyys.vercel.app',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:4173',
@@ -72,6 +73,9 @@ export function createApp(dependencies: AppDependencies = {}) {
     cors({
       origin: (origin, callback) => {
         if (!origin || allowedOrigins.has(origin)) {
+          return callback(null, true)
+        }
+        if (/^https:\/\/ai-question-generator-personal(?:-[a-z0-9-]+)?\.vercel\.app$/.test(origin)) {
           return callback(null, true)
         }
         if (env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
