@@ -11,12 +11,14 @@ export const generatedQuestionSchema = z.object({
   examples: z.array(z.object({
     input: z.string().trim().min(1).max(10_000),
     output: z.string().trim().min(1).max(10_000),
+    explanation: z.string().trim().min(1).max(2000).optional(),
   })).min(1).max(10),
   starterCode: z.object({
     Python: z.string().trim().min(10).max(10_000),
     JavaScript: z.string().trim().min(10).max(10_000),
     Java: z.string().trim().min(10).max(10_000),
     'C++': z.string().trim().min(10).max(10_000),
+    C: z.string().trim().min(10).max(10_000).optional(),
   }),
   testCases: z.array(z.object({
     id: z.string().min(1).max(50),

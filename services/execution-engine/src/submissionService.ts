@@ -173,7 +173,8 @@ export class SubmissionService {
 
   // ── Language-mismatch heuristic ───────────────────────────────────────────
   private detectLanguageMismatch(language: ProgrammingLanguage, code: string): string | null {
-    const looksCpp = /#include\s*<|using\s+namespace\s+std;|std::|<bits\/stdc\+\+\.h>/.test(code)
+    const looksCpp = /using\s+namespace\s+std;|std::|<bits\/stdc\+\+\.h>|#include\s*<(?:iostream|vector|algorithm|unordered_map|unordered_set|map|set|string|queue|stack)>/.test(code)
+    const looksCOrCpp = /#include\s*</.test(code)
     const looksPython = /^\s*(from\s+\S+\s+import|def\s+\w+\s*\(|class\s+Solution\s*:|import\s+sys\b)/m.test(code)
     const looksJava = /\bpublic\s+(class|static)\b.*|import\s+java\./.test(code)
     // JS detection: only flag if there's clear node/browser-specific API, not generic code
@@ -182,13 +183,16 @@ export class SubmissionService {
     if (looksCpp && language !== 'C++') {
       return `Language mismatch: C++ syntax detected but ${language} is selected. Switch language to C++.`
     }
+    if (looksCOrCpp && !looksCpp && language !== 'C' && language !== 'C++') {
+      return `Language mismatch: C/C++ syntax detected but ${language} is selected. Switch language to C or C++.`
+    }
     if (looksPython && language !== 'Python') {
       return `Language mismatch: Python syntax detected but ${language} is selected. Switch language to Python.`
     }
-    if (looksJava && !looksCpp && !looksJavaScript && language !== 'Java') {
+    if (looksJava && !looksCOrCpp && !looksJavaScript && language !== 'Java') {
       return `Language mismatch: Java syntax detected but ${language} is selected. Switch language to Java.`
     }
-    if (looksJavaScript && !looksCpp && !looksPython && !looksJava && language !== 'JavaScript') {
+    if (looksJavaScript && !looksCOrCpp && !looksPython && !looksJava && language !== 'JavaScript') {
       return `Language mismatch: JavaScript syntax detected but ${language} is selected. Switch language to JavaScript.`
     }
     return null

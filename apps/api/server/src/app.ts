@@ -15,19 +15,33 @@ import { QuestionService } from '../../../../services/question-engine/src/questi
 import { SubmissionService } from '../../../../services/execution-engine/src/submissionService.js'
 import { GeminiQuestionProvider } from '../../../../services/question-engine/src/geminiProvider.js'
 import { QuestionAuditor } from '../../../../services/question-engine/src/questionAuditor.js'
-import { DockerCodeRunner } from '../../../../services/execution-engine/src/dockerCodeRunner.js'
+import {
+  GeminiInterviewerProvider,
+  InterviewerService,
+} from '../../../../services/question-engine/src/interviewerService.js'
+import { createCodeRunner } from '../../../../services/execution-engine/src/runnerFactory.js'
+import type { CodeRunner } from '../../../../services/execution-engine/src/codeRunner.js'
 import { createAttemptRouter } from './routes/attemptRoutes.js'
+import { createInterviewerRouter } from './routes/interviewerRoutes.js'
 
 export interface AppDependencies {
   repository?: QuestionRepository
+  codeRunner?: CodeRunner
   questionService?: QuestionService
   submissionService?: SubmissionService
+  interviewerService?: InterviewerService
 }
 
 export function createApp(dependencies: AppDependencies = {}) {
   const app = express()
   const repository = dependencies.repository ?? new QuestionRepository(env.MONGODB_URI, env.MONGODB_DB)
-  const codeRunner = new DockerCodeRunner()
+  const codeRunner = dependencies.codeRunner ?? createCodeRunner({
+    mode: env.CODE_RUNNER,
+    judge0Url: env.JUDGE0_URL,
+    judge0Key: env.JUDGE0_KEY,
+    judge0Host: env.JUDGE0_HOST,
+    allowDockerFallback: env.ALLOW_DOCKER_FALLBACK === 'true',
+  })
   const questionProvider = env.GEMINI_API_KEY
     ? new GeminiQuestionProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL)
     : undefined
@@ -36,6 +50,10 @@ export function createApp(dependencies: AppDependencies = {}) {
     : undefined
   const questionService = dependencies.questionService ?? new QuestionService(repository, questionProvider, questionAuditor, codeRunner)
   const submissionService = dependencies.submissionService ?? new SubmissionService(repository, codeRunner, env.EXECUTION_TIMEOUT_MS)
+  const interviewerProvider = env.GEMINI_API_KEY
+    ? new GeminiInterviewerProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL)
+    : undefined
+  const interviewerService = dependencies.interviewerService ?? new InterviewerService(repository, interviewerProvider)
 
   const configuredOrigins = env.CLIENT_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
   const allowedOrigins = new Set([
@@ -82,6 +100,7 @@ export function createApp(dependencies: AppDependencies = {}) {
   app.use('/api/questions', generationLimiter, createQuestionRouter(questionService))
   app.use('/api/submissions', submissionLimiter, createSubmissionRouter(submissionService, repository))
   app.use('/api/attempts', createAttemptRouter(repository, questionService))
+  app.use('/api/interviewer', generationLimiter, createInterviewerRouter(interviewerService))
 
   app.use(notFoundHandler)
   app.use(errorHandler)

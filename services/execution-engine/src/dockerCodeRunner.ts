@@ -52,7 +52,9 @@ export class DockerCodeRunner implements CodeRunner {
         ? 'main.js'
         : language === 'Java'
           ? 'Main.java'
-          : 'main.cpp'
+          : language === 'C'
+            ? 'main.c'
+            : 'main.cpp'
     await writeFile(join(workDir, fileName), code, 'utf8')
     return fileName
   }
@@ -81,6 +83,9 @@ export class DockerCodeRunner implements CodeRunner {
     }
     if (request.language === 'Java') {
       return [...common, 'eclipse-temurin:21-jdk-alpine', 'sh', '-c', 'javac -d /tmp /work/Main.java && java -cp /tmp Main']
+    }
+    if (request.language === 'C') {
+      return [...common, 'gcc:14.2.0', 'sh', '-c', 'gcc -std=c11 -O2 -o /tmp/main /work/main.c && /tmp/main']
     }
     return [...common, 'gcc:14.2.0', 'sh', '-c', 'g++ -std=c++17 -O2 -o /tmp/main /work/main.cpp && /tmp/main']
   }
@@ -188,19 +193,23 @@ export class DockerCodeRunner implements CodeRunner {
       return this.runNativeCandidates(candidates, stdin, timeoutMs)
     }
 
-    const executable = request.language === 'C++'
+    const executable = request.language === 'C++' || request.language === 'C'
       ? { command: join(workDir, process.platform === 'win32' ? 'main.exe' : 'main'), args: [] }
       : { command: javaCommand, args: ['-cp', workDir, 'Main'] }
 
     return new Promise((resolve) => {
       let compilation: ReturnType<typeof spawn> | null = null
-      if (request.language === 'C++') {
-        const compilerCandidates = ['g++', 'clang++', 'c++']
+      if (request.language === 'C++' || request.language === 'C') {
+        const isC = request.language === 'C'
+        const compilerCandidates = isC ? ['gcc', 'clang', 'cc'] : ['g++', 'clang++', 'c++']
         const compiler = compilerCandidates.find((candidate) => {
           if (process.platform !== 'win32') return true
-          return existsSync(candidate) || candidate === 'g++'
-        }) ?? 'g++'
-        compilation = spawn(compiler, ['-std=c++17', '-O2', '-o', join(workDir, process.platform === 'win32' ? 'main.exe' : 'main'), join(workDir, 'main.cpp')], {
+          return existsSync(candidate) || candidate === (isC ? 'gcc' : 'g++')
+        }) ?? (isC ? 'gcc' : 'g++')
+        const compilerArgs = isC
+          ? ['-std=c11', '-O2', '-o', join(workDir, process.platform === 'win32' ? 'main.exe' : 'main'), join(workDir, 'main.c')]
+          : ['-std=c++17', '-O2', '-o', join(workDir, process.platform === 'win32' ? 'main.exe' : 'main'), join(workDir, 'main.cpp')]
+        compilation = spawn(compiler, compilerArgs, {
           stdio: ['ignore', 'pipe', 'pipe'],
           windowsHide: true,
         })
@@ -216,7 +225,7 @@ export class DockerCodeRunner implements CodeRunner {
           if (exitCode !== 0) {
             resolve({
               stdout: '',
-              stderr: compileError || 'C++ compilation failed.',
+              stderr: compileError || `${request.language} compilation failed.`,
               timedOut: false,
               runtimeError: true,
             })
@@ -300,6 +309,8 @@ export class DockerCodeRunner implements CodeRunner {
     const message = stderr.toLowerCase()
     return message.includes('cannot connect to the docker daemon')
       || message.includes('docker daemon is not running')
+      || message.includes('failed to connect to the docker api')
+      || message.includes('dockerdesktoplinuxengine')
       || message.includes('docker: command not found')
       || message.includes('unable to find image')
       || message.includes('is not recognized as an internal or external command')

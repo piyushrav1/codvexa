@@ -30,6 +30,7 @@ test('isProgrammingLanguage validates supported languages', () => {
   assert.equal(isProgrammingLanguage('JavaScript'), true)
   assert.equal(isProgrammingLanguage('Java'), true)
   assert.equal(isProgrammingLanguage('C++'), true)
+  assert.equal(isProgrammingLanguage('C'), true)
   assert.equal(isProgrammingLanguage('Ruby'), false)
   assert.equal(isProgrammingLanguage(123), false)
   assert.equal(isProgrammingLanguage(null), false)

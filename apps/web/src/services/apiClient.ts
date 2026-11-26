@@ -1,5 +1,14 @@
-import type { AttemptDto, GenerateQuestionRequest, QuestionDto, SubmissionRequest, SubmissionResultDto } from '../../../../packages/shared/src/types'
-import type { PracticeTimerDto } from '../../../../packages/shared/src/types'
+import type {
+  AttemptDto,
+  CodeFixRequest,
+  CodeFixResponse,
+  GenerateQuestionRequest,
+  InterviewerChatRequest,
+  PracticeTimerDto,
+  QuestionDto,
+  SubmissionRequest,
+  SubmissionResultDto,
+} from '../../../../packages/shared/src/types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? ''
 
@@ -93,4 +102,86 @@ export const apiClient = {
     request<{ hint: string; level: number }>(`/api/questions/${encodeURIComponent(questionId)}/hints`, {
       method: 'POST',
     }),
+  fixCode: (input: CodeFixRequest) =>
+    request<CodeFixResponse>('/api/interviewer/fix', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  async streamInterviewerChat(
+    input: InterviewerChatRequest,
+    callbacks: {
+      onDelta: (text: string) => void
+      onError?: (message: string) => void
+      onDone?: () => void
+    },
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const sessionId = getSessionId()
+    const response = await fetch(`${API_BASE_URL}/api/interviewer/chat`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(sessionId ? { 'x-session-id': sessionId } : {}),
+      },
+      body: JSON.stringify(input),
+      signal,
+    })
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: { message?: string; code?: string } } | null
+      throw new ApiError(
+        payload?.error?.message ?? 'AI interviewer request failed.',
+        response.status,
+        payload?.error?.code,
+      )
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      callbacks.onDone?.()
+      return
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    const processEvent = (rawEvent: string) => {
+      const dataLine = rawEvent
+        .split('\n')
+        .find((line) => line.startsWith('data: '))
+      if (!dataLine) return
+      try {
+        const parsed = JSON.parse(dataLine.slice(6)) as { type: string; content?: string }
+        if (parsed.type === 'delta' && parsed.content) {
+          callbacks.onDelta(parsed.content)
+        } else if (parsed.type === 'error') {
+          callbacks.onError?.(parsed.content || 'Streaming error')
+        } else if (parsed.type === 'done') {
+          callbacks.onDone?.()
+        }
+      } catch {
+        // ignore malformed SSE frame
+      }
+    }
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const events = buffer.split('\n\n')
+      buffer = events.pop() ?? ''
+
+      for (const rawEvent of events) {
+        processEvent(rawEvent)
+      }
+    }
+
+    if (buffer.trim()) {
+      processEvent(buffer)
+    }
+
+    callbacks.onDone?.()
+  },
 }

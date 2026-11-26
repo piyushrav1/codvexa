@@ -3,11 +3,12 @@ import {
   Bell, ChevronDown, ChevronUp, Code2, Copy, Play, RefreshCw,
   Sparkles, Send, Settings, Terminal, CheckCircle2, Sun, Moon, Monitor, RotateCcw, Maximize2,
   ArrowRight, Layers3, Clock3, Trophy, Shuffle,
-  Pause, LogOut, X, Check, Command,
+  Pause, LogOut, X, Check, Command, MessageSquare,
 } from 'lucide-react'
 import Editor from '@monaco-editor/react'
 import { apiClient } from './services'
-import type { AttemptDto, PracticeTimerDto, ProgrammingLanguage, QuestionDto, SubmissionResultDto } from '../../../packages/shared/src/types'
+import { InterviewerPanel } from './components/InterviewerPanel'
+import type { AttemptDto, InterviewerTurnDto, PracticeTimerDto, ProgrammingLanguage, QuestionDto, SubmissionResultDto } from '../../../packages/shared/src/types'
 
 const defaultStarterCode: Record<string, string> = {
   Python: `import sys
@@ -59,6 +60,14 @@ int main() {
 
     return 0;
 }`,
+  C: `#include <stdio.h>
+#include <stdlib.h>
+
+int main(void) {
+    // Write your solution here
+
+    return 0;
+}`,
 }
 
 const formatTimer = (seconds: number) => {
@@ -105,6 +114,13 @@ function App() {
   const [code, setCode] = useState(defaultStarterCode.Python)
   const [question, setQuestion] = useState<QuestionDto | null>(null)
   const [activeTab, setActiveTab] = useState<'testcases' | 'custom' | 'result'>('testcases')
+  const [problemTab, setProblemTab] = useState<'problem' | 'interviewer'>('problem')
+  const [interviewerMessages, setInterviewerMessages] = useState<InterviewerTurnDto[]>([])
+
+  useEffect(() => {
+    setInterviewerMessages([])
+    setProblemTab('problem')
+  }, [question?.id])
   const [outputCollapsed, setOutputCollapsed] = useState(false)
   const [editorTab, setEditorTab] = useState<'solution' | 'submissions'>('solution')
   const [selectedTest, setSelectedTest] = useState(0)
@@ -577,7 +593,9 @@ function App() {
   }
 
   const generateQuestion = () => {
+    if (generating) return
     setGenerating(true)
+    setGenerationError('')
     apiClient.createNewAttempt({
       topic: selectedCategories[0] ?? selectedTopic,
       difficulty: selectedDifficulty,
@@ -606,12 +624,26 @@ function App() {
       .finally(() => setGenerating(false))
   }
 
+  const generationSplash = generating ? (
+    <div className="generation-splash" role="status" aria-live="polite" aria-busy="true">
+      <div className="generation-splash-card">
+        <div className="generation-splash-spinner">
+          <Sparkles size={28} className="spin" />
+        </div>
+        <h2>Crafting Your Challenge</h2>
+        <p>Generating problem, auditing constraints, and verifying test cases...</p>
+      </div>
+    </div>
+  ) : null
+
   if (practiceView === 'landing') {
     const selectedCategory = practiceCategories.find((category) => category.id === selectedTopic) ?? practiceCategories[0]
     const LandingIcon = selectedCategory.icon
 
     return (
-      <main className="landing-page">
+      <>
+        {generationSplash}
+        <main className="landing-page">
         <header className="landing-header">
           <button className="landing-brand" onClick={() => setPracticeView('landing')} aria-label="TestMeMan home">
             <span className="brand-mark"><Code2 size={20} strokeWidth={2.5} /></span>
@@ -733,21 +765,23 @@ function App() {
           </section>
         </div>
       </main>
+      </>
     )
   }
 
-  if (!question || generating) {
-    return (
+  if (!question) {
+    return generationSplash ?? (
       <main className="landing-page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', gap: '1.5rem' }}>
         <Sparkles size={40} className="spin" style={{ color: '#6366f1' }} />
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Generating Unique AI Challenge...</h2>
-        <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.95rem' }}>Crafting original problem statement, test cases, and starter code with Gemini AI.</p>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Loading Challenge...</h2>
       </main>
     )
   }
 
   return (
-    <div className="app-shell">
+    <>
+      {generationSplash}
+      <div className="app-shell">
       <header className="topbar">
         <button
           className="brand workspace-brand-button"
@@ -791,19 +825,50 @@ function App() {
       <main className="workspace" style={{ gridTemplateColumns: `${problemWidth}px 6px minmax(360px, 1fr)` }}>
         <section className="problem-pane">
           <div className="problem-toolbar">
-            <div className="breadcrumb">
-              <span>Practice</span>
-              <span>/</span>
-              <strong>{question ? (question.topic.charAt(0).toUpperCase() + question.topic.slice(1)) : 'Problem'}</strong>
+            <div className="problem-pane-tabs" role="tablist" aria-label="Problem pane views">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={problemTab === 'problem'}
+                className={`problem-pane-tab ${problemTab === 'problem' ? 'active' : ''}`}
+                onClick={() => setProblemTab('problem')}
+              >
+                <Code2 size={14} />
+                Problem
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={problemTab === 'interviewer'}
+                className={`problem-pane-tab ${problemTab === 'interviewer' ? 'active' : ''}`}
+                onClick={() => setProblemTab('interviewer')}
+              >
+                <MessageSquare size={14} />
+                AI Interviewer
+              </button>
             </div>
-            <button className="generate-button" onClick={generateQuestion}>
+            <button className="generate-button" onClick={generateQuestion} disabled={generating}>
               <RefreshCw size={15} className={generating ? 'spin' : ''} />
               {generating ? 'Generating...' : 'Generate New'}
             </button>
           </div>
           {generationError && <div className="generation-error" role="alert">{generationError}</div>}
 
-          <div className="problem-scroll">
+          {problemTab === 'interviewer' ? (
+            <InterviewerPanel
+              question={question}
+              language={language}
+              code={code}
+              lastSubmission={submissionResult}
+              messages={interviewerMessages}
+              setMessages={setInterviewerMessages}
+              onApplyCode={(fixedCode) => {
+                setCode(fixedCode)
+                setProblemTab('problem')
+              }}
+            />
+          ) : (
+            <div className="problem-scroll">
             <div className="problem-heading">
               <div>
                 <div className="title-row">
@@ -818,7 +883,18 @@ function App() {
             </div>
 
             <article className="problem-content">
-              <p>{question.statement}</p>
+              {question.statement.split(/\n{2,}/).map((block, blockIdx) => {
+                const lines = block.split('\n').map((l) => l.trim()).filter(Boolean)
+                const isBulletList = lines.length > 0 && lines.every((l) => /^[-*]\s+/.test(l))
+                if (isBulletList) {
+                  return (
+                    <ul key={blockIdx}>
+                      {lines.map((line, i) => <li key={i}>{line.replace(/^[-*]\s+/, '')}</li>)}
+                    </ul>
+                  )
+                }
+                return <p key={blockIdx}>{block}</p>
+              })}
               {question.inputFormat && (
                 <>
                   <h2>Input Format</h2>
@@ -838,6 +914,7 @@ function App() {
                   <div className="example-box">
                     <div><span>Input:</span> {example.input}</div>
                     <div><span>Output:</span> {example.output}</div>
+                    {example.explanation && <p><strong>Explanation:</strong> {example.explanation}</p>}
                   </div>
                 </div>
               ))}
@@ -847,7 +924,8 @@ function App() {
                 {question.constraints.map((constraint, index) => <li key={`${constraint}-${index}`}><code>{constraint}</code></li>)}
               </ul>
             </article>
-          </div>
+            </div>
+          )}
         </section>
 
         <div
@@ -898,6 +976,7 @@ function App() {
                   <option>JavaScript</option>
                   <option>Java</option>
                   <option>C++</option>
+                  <option>C</option>
                 </select>
               </button>
               <button
@@ -1002,6 +1081,7 @@ function App() {
                 JavaScript: 'javascript',
                 Java: 'java',
                 'C++': 'cpp',
+                C: 'c',
               }[language]}
               value={code}
               onChange={(value) => setCode(value ?? '')}
@@ -1162,6 +1242,15 @@ function App() {
                       <div className="result-summary success">
                         <CheckCircle2 size={20} />
                         <div><strong>Accepted</strong><span>{submissionResult?.message}</span></div>
+                        <button
+                          type="button"
+                          className="generate-button"
+                          style={{ marginLeft: 'auto' }}
+                          onClick={() => setProblemTab('interviewer')}
+                        >
+                          <MessageSquare size={14} />
+                          Ask AI Interviewer
+                        </button>
                       </div>
                       <div className="result-stats">
                         <div><span>Runtime</span><strong>{submissionResult?.runtimeMs ? `${submissionResult.runtimeMs} ms` : 'N/A'}</strong></div>
@@ -1176,6 +1265,15 @@ function App() {
                       <div className="result-summary error">
                         <Terminal size={20} />
                         <div><strong>{submissionResult?.status === 'time_limit_exceeded' ? 'Time Limit Exceeded' : submissionResult?.status === 'runtime_error' ? 'Runtime Error' : 'Wrong Answer'}</strong><span>{submissionResult?.message ?? 'Submission failed.'}</span></div>
+                        <button
+                          type="button"
+                          className="generate-button"
+                          style={{ marginLeft: 'auto' }}
+                          onClick={() => setProblemTab('interviewer')}
+                        >
+                          <MessageSquare size={14} />
+                          Ask AI Interviewer
+                        </button>
                       </div>
                       <div className="result-stats">
                         <div><span>Visible</span><strong>{submissionResult ? `${submissionResult.visiblePassed}/${submissionResult.visibleTotal}` : 'N/A'}</strong></div>
@@ -1377,6 +1475,7 @@ function App() {
         </div>
       )}
     </div>
+    </>
   )
 }
 

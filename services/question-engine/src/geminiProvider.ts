@@ -68,6 +68,15 @@ int main() {
 
     return 0;
 }`,
+
+  C: `#include <stdio.h>
+#include <stdlib.h>
+
+int main(void) {
+    // Write your solution here using scanf/printf
+
+    return 0;
+}`,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,12 +89,18 @@ Your PRIMARY GOAL is mathematical correctness. Creativity is secondary.
 MANDATORY GENERATION ORDER — follow this EXACT sequence
 ════════════════════════════════════════════════════════════
 
-STEP 1 ─ Define the problem mathematically.
-  • One clear interpretation, zero ambiguity.
-  • Explicitly define: indexing (0-based or 1-based), edge cases, duplicate handling, boundary behavior.
-  • Specify all special conditions: empty input, single element, negative numbers, ties, cycles.
-  • State whether comparisons are strict or non-strict.
-  • State what to output when no valid answer exists.
+STEP 1 ─ Design a familiar LeetCode / HackerRank style problem.
+  • Write in crisp, direct LeetCode/HackerRank style—NO contrived story fluff or long essay paragraphs.
+  • Lead with 1-2 short sentences stating what is given and what to compute/return (e.g. "Given an integer array nums and an integer k, find...").
+  • If there are multiple rules, use short bullet lines starting with "- " separated by \n\n instead of a single dense paragraph.
+  • Anchor to recognizable interview patterns:
+    - arrays / hashing: two pointers, sliding window, prefix sum, subarray/frequency map, Kadane's, intervals
+    - strings: sliding window, palindrome/two pointers, anagram/pattern matching
+    - stacks: monotonic stack, bracket/expression evaluation
+    - trees / graphs: BFS/DFS, shortest path (Dijkstra / 0-1 BFS), topological sort, union-find
+    - dynamic-programming: 1D/2D state DP, knapsack, LIS, grid/interval DP
+    - sorting-searching: binary search on answer, merge intervals, custom comparator
+  • Explicitly define indexing (0-based or 1-based), tie-breaking, and what to output if no valid answer exists.
 
 STEP 2 ─ Write a Python 3 reference solution (internally, do not expose it).
   • Must be optimal for the given constraints.
@@ -113,7 +128,7 @@ INPUT / OUTPUT FORMAT — strict rules, no exceptions
 • All test case inputs are raw stdin (line-by-line or space-separated tokens).
 • All expected outputs are raw stdout.
 • NEVER use key=value format in test cases (no "nums=[1,2,3]", no "k=5").
-• The stdin format must work identically for Python, JavaScript, Java, and C++.
+• The stdin format must work identically for Python, JavaScript, Java, C++, and C.
 • Newlines in JSON strings must be escaped as \\n.
 
 VALID input examples:
@@ -132,8 +147,8 @@ REQUIRED JSON OUTPUT FORMAT
 Output ONLY valid JSON. No markdown. No code fences. No commentary.
 
 {
-  "title": "Unique descriptive problem title",
-  "statement": "Full problem description. Every condition must be explicit. Minimum 3 paragraphs.",
+  "title": "Concise LeetCode-style title (3-6 words)",
+  "statement": "Concise 1-2 sentence problem summary.\n\n- Optional bullet rule 1\n- Optional bullet rule 2",
   "constraints": [
     "1 ≤ n ≤ 10^5",
     "-10^9 ≤ a[i] ≤ 10^9",
@@ -150,12 +165,6 @@ Output ONLY valid JSON. No markdown. No code fences. No commentary.
       "explanation": "Sum of 1+2+3+4+5 = 15."
     }
   ],
-  "starterCode": {
-    "Python": "import sys\\ninput = sys.stdin.readline\\n\\ndef solve():\\n    pass\\n\\nsolve()",
-    "JavaScript": "process.stdin.resume();\\nprocess.stdin.setEncoding('utf8');\\nlet _in = '';\\nprocess.stdin.on('data', d => _in += d);\\nprocess.stdin.on('end', () => {\\n  const lines = _in.trim().split('\\\\n');\\n  let idx = 0;\\n  const rl = () => lines[idx++] || '';\\n  // solve here\\n});",
-    "Java": "import java.util.*;\\nimport java.io.*;\\npublic class Main {\\n    static BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\\n    static StringTokenizer st;\\n    static int ni() throws IOException { while(st==null||!st.hasMoreTokens()) st=new StringTokenizer(br.readLine()); return Integer.parseInt(st.nextToken()); }\\n    public static void main(String[] a) throws IOException {\\n        // solve here\\n    }\\n}",
-    "C++": "#include <bits/stdc++.h>\\nusing namespace std;\\nint main(){\\n    ios_base::sync_with_stdio(false);\\n    cin.tie(NULL);\\n    // solve here\\n    return 0;\\n}"
-  },
   "testCases": [
     { "id": "v1", "name": "Basic example",      "input": "5\\n1 2 3 4 5", "expectedOutput": "15",  "hidden": false },
     { "id": "v2", "name": "Single element",     "input": "1\\n7",          "expectedOutput": "7",   "hidden": false },
@@ -249,10 +258,16 @@ export class GeminiQuestionProvider implements QuestionProvider {
     // examples — support both {input,output} and {input,output,explanation}
     const rawExamples = Array.isArray(raw?.examples) && raw.examples.length > 0 ? raw.examples : []
     const examples = rawExamples.length > 0
-      ? rawExamples.map((ex: any) => ({
-          input: typeof ex?.input === 'string' ? ex.input.trim() : String(ex?.input ?? '').trim(),
-          output: (typeof ex?.output === 'string' ? ex.output : typeof ex?.expectedOutput === 'string' ? ex.expectedOutput : String(ex?.output ?? '')).trim(),
-        }))
+      ? rawExamples.map((ex: any) => {
+          const explanation = typeof ex?.explanation === 'string' && ex.explanation.trim()
+            ? ex.explanation.trim()
+            : undefined
+          return {
+            input: typeof ex?.input === 'string' ? ex.input.trim() : String(ex?.input ?? '').trim(),
+            output: (typeof ex?.output === 'string' ? ex.output : typeof ex?.expectedOutput === 'string' ? ex.expectedOutput : String(ex?.output ?? '')).trim(),
+            ...(explanation ? { explanation } : {}),
+          }
+        })
       : [{ input: '1\n0', output: '0' }]
 
     // starterCode — ALWAYS override with our controlled starters (no solution leakage)
@@ -304,6 +319,13 @@ export class GeminiQuestionProvider implements QuestionProvider {
       .replace(/```\s*$/m, '')              // closing fence
       .trim()
 
+    // Extract outermost JSON object if surrounded by prose
+    const firstBrace = cleaned.indexOf('{')
+    const lastBrace = cleaned.lastIndexOf('}')
+    if (firstBrace > 0 && lastBrace > firstBrace) {
+      cleaned = cleaned.slice(firstBrace, lastBrace + 1)
+    }
+
     // Try standard parse first
     try {
       JSON.parse(cleaned)
@@ -351,12 +373,17 @@ export class GeminiQuestionProvider implements QuestionProvider {
     customPrompt?: string
   }): Promise<GeneratedQuestion> {
     const candidateModels = [
-      this.model || 'gemini-3.5-flash-lite',
+      this.model || 'gemini-flash-lite-latest',
       'gemini-flash-lite-latest',
       'gemini-3.5-flash',
       'gemini-flash-latest',
-      'gemini-3.8-flash',
     ].filter((m, i, arr) => Boolean(m) && arr.indexOf(m) === i)
+
+    // Try primary model twice (for transient JSON/schema glitches) before falling back
+    const modelSchedule = [
+      candidateModels[0],
+      ...candidateModels,
+    ]
 
     const seed = randomUUID()
     const timestamp = Date.now()
@@ -368,7 +395,7 @@ export class GeminiQuestionProvider implements QuestionProvider {
 
     // Build category/topic line
     const topicLine = input.categories && input.categories.length > 1
-      ? `Categories (combine ALL into one coherent problem): ${input.categories.join(', ')}`
+      ? `Categories (pick a natural, classic interview problem at the intersection of: ${input.categories.join(', ')})`
       : `Category: ${input.topic}`
 
     // User custom requirement
@@ -383,21 +410,28 @@ Timestamp: ${timestamp}
 ${exclusionClause}
 Now follow all 5 steps and produce the JSON output.`
 
-    const maxRetries = candidateModels.length * 2  // try each model twice before giving up
+    const maxRetries = modelSchedule.length
+    const requestTimeoutMs = 35_000
     let lastError: unknown = null
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const currentModel = candidateModels[attempt % candidateModels.length]
+      const currentModel = modelSchedule[attempt]!
 
       try {
-        const response = await this.client.models.generateContent({
-          model: currentModel,
-          contents: `${SYSTEM_PROMPT}\n\n---\n\n${userPrompt}`,
-          config: {
-            responseMimeType: 'application/json',
-            temperature: 0.7,
-          },
-        })
+        const response = await Promise.race([
+          this.client.models.generateContent({
+            model: currentModel,
+            contents: `${SYSTEM_PROMPT}\n\n---\n\n${userPrompt}`,
+            config: {
+              responseMimeType: 'application/json',
+              temperature: 0.7,
+              maxOutputTokens: 8192,
+            },
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Gemini request timed out after ${requestTimeoutMs}ms`)), requestTimeoutMs),
+          ),
+        ])
 
         const text = response.text?.trim()
         if (!text) {
@@ -410,8 +444,9 @@ Now follow all 5 steps and produce the JSON output.`
         let rawObj: unknown
         try {
           rawObj = JSON.parse(this.cleanJson(text))
-        } catch {
-          console.warn(`[GeminiProvider] JSON parse failed from ${currentModel} (attempt ${attempt + 1})`)
+        } catch (parseErr) {
+          const msg = parseErr instanceof Error ? parseErr.message : String(parseErr)
+          console.warn(`[GeminiProvider] JSON parse failed from ${currentModel} (attempt ${attempt + 1}): ${msg} | tail: ${text.slice(-120)}`)
           lastError = new Error('JSON parse failed')
           await this.delay(500)
           continue
@@ -441,7 +476,13 @@ Now follow all 5 steps and produce the JSON output.`
         }
 
         console.info(`[GeminiProvider] Generated "${parsed.data.title}" using ${currentModel} (attempt ${attempt + 1})`)
-        return parsed.data
+        return {
+          ...parsed.data,
+          starterCode: {
+            ...parsed.data.starterCode,
+            C: parsed.data.starterCode.C ?? defaultStarters.C,
+          },
+        }
 
       } catch (error) {
         if (error instanceof HttpError) throw error

@@ -1,4 +1,4 @@
-export const PROGRAMMING_LANGUAGES = ['Python', 'JavaScript', 'Java', 'C++'] as const
+export const PROGRAMMING_LANGUAGES = ['Python', 'JavaScript', 'Java', 'C++', 'C'] as const
 export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const
 
 export type ProgrammingLanguage = typeof PROGRAMMING_LANGUAGES[number]
@@ -21,7 +21,7 @@ export interface QuestionDto {
   topic: string
   statement: string
   constraints: string[]
-  examples: Array<{ input: string; output: string }>
+  examples: Array<{ input: string; output: string; explanation?: string }>
   starterCode: Record<ProgrammingLanguage, string>
   testCases: TestCaseDto[]
   inputFormat?: string
@@ -121,5 +121,34 @@ export interface QuestionSearchResultDto {
   page: number
   limit: number
   totalPages: number
+}
+
+export interface InterviewerTurnDto {
+  id: string
+  role: 'interviewer' | 'candidate'
+  text: string
+  createdAt: string
+}
+
+export interface InterviewerChatRequest {
+  questionId: string
+  language: ProgrammingLanguage
+  code: string
+  message: string
+  history?: Array<{ role: 'interviewer' | 'candidate'; text: string }>
+  lastSubmission?: SubmissionResultDto | null
+}
+
+export interface CodeFixRequest {
+  questionId: string
+  language: ProgrammingLanguage
+  code: string
+  lastSubmission?: SubmissionResultDto | null
+}
+
+export interface CodeFixResponse {
+  diagnosis: string
+  fixedCode: string
+  explanation: string
 }
 

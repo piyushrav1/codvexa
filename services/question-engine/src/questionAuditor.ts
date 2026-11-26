@@ -70,7 +70,6 @@ export class QuestionAuditor {
       this.model || 'gemini-3.5-flash-lite',
       'gemini-3.5-flash',
       'gemini-flash-latest',
-      'gemini-3.8-flash',
     ].filter((m, i, arr) => Boolean(m) && arr.indexOf(m) === i)
 
     const payloadText = JSON.stringify({
@@ -91,16 +90,22 @@ export class QuestionAuditor {
       })),
     }, null, 2)
 
+    const auditTimeoutMs = 15_000
     for (const model of candidateModels) {
       try {
-        const response = await this.client.models.generateContent({
-          model,
-          contents: `${AUDITOR_SYSTEM_PROMPT}\n\nProblem to audit:\n${payloadText}`,
-          config: {
-            responseMimeType: 'application/json',
-            temperature: 0.1, // low temperature for strict verification
-          },
-        })
+        const response = await Promise.race([
+          this.client.models.generateContent({
+            model,
+            contents: `${AUDITOR_SYSTEM_PROMPT}\n\nProblem to audit:\n${payloadText}`,
+            config: {
+              responseMimeType: 'application/json',
+              temperature: 0.1, // low temperature for strict verification
+            },
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Auditor timed out after ${auditTimeoutMs}ms`)), auditTimeoutMs),
+          ),
+        ])
 
         const text = response.text?.trim()
         if (!text) continue

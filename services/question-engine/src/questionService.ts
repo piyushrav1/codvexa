@@ -66,58 +66,71 @@ export class QuestionService {
         // 4 & 5. Backend executes reference code to compute & validate true expected outputs
         if (this.runner && generated.referenceSolution) {
           console.info(`[QuestionService] Step 4 & 5: Executing reference code in sandbox to compute exact outputs...`)
-          const validTestCases: typeof generated.testCases = []
+          const referenceSolution = generated.referenceSolution
+          const runner = this.runner
 
-          for (const tc of generated.testCases) {
-            try {
-              const execResult = await this.runner.execute({
-                language: 'Python',
-                code: generated.referenceSolution,
-                input: tc.input,
-                timeoutMs: 3000,
-              })
-
-              if (execResult.timedOut || execResult.runtimeError) {
-                console.warn(`[QuestionService] Reference solution failed on test case "${tc.name}": ${execResult.stderr || 'timed out'}`)
-                continue
-              }
-
-              // Overwrite expectedOutput with the REAL executed output from Python!
-              const actualStdout = execResult.stdout.trim()
-              if (actualStdout.length > 0) {
-                validTestCases.push({
-                  ...tc,
-                  expectedOutput: actualStdout,
+          const executedCases = await Promise.all(
+            generated.testCases.map(async (tc) => {
+              try {
+                const execResult = await runner.execute({
+                  language: 'Python',
+                  code: referenceSolution,
+                  input: tc.input,
+                  timeoutMs: 3000,
                 })
-              }
-            } catch (err) {
-              console.warn(`[QuestionService] Test case execution error:`, err)
-            }
-          }
 
-          // Also verify example outputs
-          for (const ex of generated.examples) {
-            try {
-              const exResult = await this.runner.execute({
-                language: 'Python',
-                code: generated.referenceSolution,
-                input: ex.input,
-                timeoutMs: 3000,
-              })
-              if (!exResult.timedOut && !exResult.runtimeError && exResult.stdout.trim()) {
-                ex.output = exResult.stdout.trim()
-              }
-            } catch {
-              // keep existing example output if sandbox fails
-            }
-          }
+                if (execResult.timedOut || execResult.runtimeError) {
+                  console.warn(`[QuestionService] Reference solution failed on test case "${tc.name}": ${execResult.stderr || 'timed out'}`)
+                  return null
+                }
 
-          if (validTestCases.length >= 3) {
+                // Overwrite expectedOutput with the REAL executed output from Python!
+                const actualStdout = execResult.stdout.trim()
+                if (actualStdout.length > 0) {
+                  return {
+                    ...tc,
+                    expectedOutput: actualStdout,
+                  }
+                }
+                return null
+              } catch (err) {
+                console.warn(`[QuestionService] Test case execution error:`, err)
+                return null
+              }
+            }),
+          )
+
+          const validTestCases = executedCases.filter((tc): tc is NonNullable<typeof tc> => tc !== null)
+
+          // Also verify example outputs in parallel
+          await Promise.all(
+            generated.examples.map(async (ex) => {
+              try {
+                const exResult = await runner.execute({
+                  language: 'Python',
+                  code: referenceSolution,
+                  input: ex.input,
+                  timeoutMs: 3000,
+                })
+                if (!exResult.timedOut && !exResult.runtimeError && exResult.stdout.trim()) {
+                  ex.output = exResult.stdout.trim()
+                }
+              } catch {
+                // keep existing example output if sandbox fails
+              }
+            }),
+          )
+
+          const hasVisible = validTestCases.some((tc) => !tc.hidden)
+          const hasHidden = validTestCases.some((tc) => tc.hidden)
+
+          if (validTestCases.length >= 3 && hasVisible && hasHidden) {
             generated.testCases = validTestCases
             console.info(`[QuestionService] Computed & verified ${validTestCases.length} test cases with backend sandbox!`)
           } else {
-            console.warn(`[QuestionService] Reference solution did not pass enough test cases (${validTestCases.length}/3). Retrying...`)
+            console.warn(`[QuestionService] Reference solution did not pass enough visible/hidden test cases (${validTestCases.length}/3).`)
             if (attempt < maxGenerationAttempts) continue
+            throw new HttpError(502, 'Generated test cases failed sandbox verification.', 'TEST_VERIFICATION_FAILED')
           }
         }
 
@@ -129,6 +142,9 @@ export class QuestionService {
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err))
         console.error(`[QuestionService] Generation attempt ${attempt} failed:`, lastError.message)
+        if (err instanceof HttpError && [429, 502, 503].includes(err.status)) {
+          break
+        }
         if (attempt < maxGenerationAttempts) continue
       }
     }

@@ -14,6 +14,11 @@ const envSchema = z.object({
   EXECUTION_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(3000),
   MONGODB_URI: z.string().trim().min(1).optional(),
   MONGODB_DB: z.string().trim().min(1).default('testmeman'),
+  CODE_RUNNER: z.enum(['docker', 'judge0', 'mock']).default('docker'),
+  JUDGE0_URL: z.string().trim().min(1).optional(),
+  JUDGE0_KEY: z.string().trim().min(1).optional(),
+  JUDGE0_HOST: z.string().trim().min(1).optional(),
+  ALLOW_DOCKER_FALLBACK: z.enum(['true', 'false']).default('true'),
 })
 
 export const env = envSchema.parse(process.env)

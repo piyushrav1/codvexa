@@ -149,7 +149,8 @@ export function createAttemptRouter(repository: QuestionRepository, questionServ
         customPrompt: request.body.customPrompt,
       })
       const language = request.body.language as ProgrammingLanguage
-      const attempt = await repository.createAttempt(ownerId, question, language, question.starterCode[language])
+      const initialCode = question.starterCode[language] ?? question.starterCode.Python ?? ''
+      const attempt = await repository.createAttempt(ownerId, question, language, initialCode)
       response.status(201).json(publicAttempt(attempt))
     } catch (error) {
       next(error)
