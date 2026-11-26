@@ -58,6 +58,7 @@ export function createApp(dependencies: AppDependencies = {}) {
   const configuredOrigins = env.CLIENT_ORIGIN.split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean)
   const allowedOrigins = new Set([
     ...configuredOrigins,
+    'https://codvexa.piyushravi.in',
     'https://ai-question-generator-personal-zyys.vercel.app',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
